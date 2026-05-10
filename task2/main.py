@@ -38,6 +38,11 @@ except Exception as e:
     print(f"Warning: Could not load vector KB from task1: {e}")
     VECTOR_KB_AVAILABLE = False
 
+from dotenv import load_dotenv
+
+# Load environment variables from .env file in the root directory
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+
 # --- Configuration ---
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 if not OPENAI_API_KEY:
