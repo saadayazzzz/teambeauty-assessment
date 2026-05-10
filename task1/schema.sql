@@ -109,3 +109,17 @@ CREATE INDEX idx_orders_customer_id ON orders(customer_id);
 CREATE INDEX idx_orders_brand_id ON orders(brand_id);
 CREATE INDEX idx_product_formulations_product_id ON product_formulations(product_id);
 CREATE INDEX idx_product_reviews_product_sku ON product_reviews(product_sku);
+
+-- ==========================================
+-- SEED DATA (For Demonstration)
+-- ==========================================
+
+INSERT INTO brands (name) VALUES ('Cosmix'), ('Team Beauty');
+
+INSERT INTO products (brand_id, name, sku, category, price) VALUES 
+(1, 'Glow Serum 30ml', 'SKU-GD30', 'Skincare', 25.00),
+(1, 'Matte Lipstick', 'SKU-LP01', 'Makeup', 15.00),
+(2, 'Hydrating Cleanser', 'SKU-HC50', 'Skincare', 18.00);
+
+INSERT INTO product_reviews (product_sku, customer_name, rating, review_text, ai_summary) VALUES
+('SKU-GD30', 'Sufyan', 5, 'Amazing serum, my skin feels glowing!', 'Customers are highly satisfied with the glowing effect on their skin.');

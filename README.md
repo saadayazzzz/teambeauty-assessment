@@ -75,11 +75,26 @@ This project was designed as a single integrated ecosystem:
 
 ---
 
+---
+
+## 🤖 How AI was Used
+This project leverages multiple AI models to solve specific domain challenges:
+
+1.  **OpenAI (GPT-4o-mini)**: 
+    - **Usage**: Powers the Task 2 Customer Agent.
+    - **How**: Used for **Zero-shot Language Detection** (switching between English and Urdu without external libraries) and **Structured Data Extraction**. It identifies lead details (Company, SKU, Qty) from unstructured chat and formats them into JSON for the backend.
+2.  **Anthropic (Claude 3.5 Haiku)**:
+    - **Usage**: Powers the Task 4 Review Summarizer.
+    - **How**: Used for **Sentiment Synthesis**. It processes multiple customer reviews and produces a single, high-signal sentence that captures the "vibe" of the feedback (e.g., "Users praise the efficacy but suggest a pump dispenser").
+3.  **Sentence Transformers (all-MiniLM-L6-v2)**:
+    - **Usage**: Powers the Task 1 Vector KB.
+    - **How**: Used for **Semantic Search**. It converts CSV data into mathematical embeddings so the Task 2 agent can retrieve technical specs by "meaning" rather than just keyword matching.
+
 ## ⚖️ Tradeoffs & Design Decisions
-1. **Playwright over Scrapy**: Chosen because Amazon/cosmetics sites are heavily JS-rendered. Playwright handles this natively as a headless browser.
-2. **Local Embeddings**: Used `Sentence Transformers` for the Vector KB. This ensures Task 1 works out-of-the-box without an OpenAI key, while Task 2 uses OpenAI for conversation logic.
-3. **In-memory Fallbacks**: Every task (Scraper, Review App, Agent) includes an in-memory or JSON fallback. This ensures the apps remain functional during your evaluation even if a PostgreSQL instance is not active.
-4. **FastAPI for Shopify**: While Shopify typically uses Node/Remix, I chose FastAPI for consistency across all tasks, allowing for a unified Python-based tech stack.
+1.  **Playwright over Scrapy**: Chosen because modern e-commerce sites (and Amazon/cosmetics targets) are heavily JS-rendered. Playwright handles this natively as a headless browser.
+2.  **Local Embeddings for Task 1**: Using local transformers ensures the Vector KB works instantly without API credits, while OpenAI/Anthropic are reserved for high-level reasoning tasks.
+3.  **Unified PostgreSQL Schema**: Rather than four isolated databases, everything points to Task 1's `schema.sql`. This allows the Scraper (Task 3) to influence the AI Agent's pricing knowledge (Task 2) and the Review App's product logic (Task 4).
+4.  **FastAPI for Shopify**: While Shopify typically uses Node/Remix, I chose FastAPI for consistency across all tasks, allowing for a unified Python-based codebase that is easier to maintain and audit.
 
 ---
 
