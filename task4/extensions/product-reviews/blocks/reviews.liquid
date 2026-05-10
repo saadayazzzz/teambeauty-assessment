@@ -1,0 +1,160 @@
+{% comment %}
+  Team Beauty — Product Reviews App Block
+  This Liquid file renders the review widget on the product page.
+  It fetches reviews from the app backend via the App Proxy.
+{% endcomment %}
+
+<div id="tb-reviews-app" data-product-sku="{{ product.variants.first.sku }}">
+  <h3 class="tb-reviews-title">Customer Reviews</h3>
+  
+  <div id="tb-ai-summary" class="tb-summary-box" style="display:none;">
+    <strong>🤖 AI Summary:</strong>
+    <span id="tb-summary-text"></span>
+  </div>
+
+  <div id="tb-reviews-stats" style="display:none;">
+    <span id="tb-avg-rating"></span>
+    <span id="tb-total-reviews"></span>
+  </div>
+
+  <div id="tb-reviews-list"></div>
+
+  <hr />
+  
+  <h4>Write a Review</h4>
+  <form id="tb-review-form">
+    <div class="tb-form-group">
+      <label for="tb-name">Your Name</label>
+      <input type="text" id="tb-name" name="customer_name" required />
+    </div>
+    <div class="tb-form-group">
+      <label for="tb-rating">Rating</label>
+      <select id="tb-rating" name="rating">
+        <option value="5">⭐⭐⭐⭐⭐</option>
+        <option value="4">⭐⭐⭐⭐</option>
+        <option value="3">⭐⭐⭐</option>
+        <option value="2">⭐⭐</option>
+        <option value="1">⭐</option>
+      </select>
+    </div>
+    <div class="tb-form-group">
+      <label for="tb-review-text">Your Review</label>
+      <textarea id="tb-review-text" name="review_text" rows="3" required></textarea>
+    </div>
+    <button type="submit" class="tb-submit-btn">Submit Review</button>
+  </form>
+</div>
+
+<style>
+  #tb-reviews-app {
+    font-family: inherit;
+    max-width: 100%;
+    padding: 20px 0;
+  }
+  .tb-reviews-title { margin-bottom: 16px; }
+  .tb-summary-box {
+    background: #f0fdf4;
+    border: 1px solid #86efac;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+  }
+  .tb-form-group { margin-bottom: 12px; }
+  .tb-form-group label { display: block; margin-bottom: 4px; font-weight: 600; }
+  .tb-form-group input,
+  .tb-form-group textarea,
+  .tb-form-group select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  }
+  .tb-submit-btn {
+    background: #008060;
+    color: white;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .tb-submit-btn:hover { background: #006e52; }
+  .tb-review-card {
+    border-bottom: 1px solid #e5e5e5;
+    padding: 12px 0;
+  }
+  .tb-stars { color: #f5a623; }
+</style>
+
+<script>
+  (function() {
+    const appBase = '/apps/reviews';
+    const container = document.getElementById('tb-reviews-app');
+    const sku = container.dataset.productSku;
+
+    if (!sku) return;
+
+    // Load reviews
+    fetch(`${appBase}/reviews/${sku}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.ai_summary && data.total_reviews > 0) {
+          document.getElementById('tb-ai-summary').style.display = 'block';
+          document.getElementById('tb-summary-text').textContent = data.ai_summary;
+        }
+        if (data.total_reviews > 0) {
+          document.getElementById('tb-reviews-stats').style.display = 'block';
+          document.getElementById('tb-avg-rating').textContent = `${data.average_rating}/5`;
+          document.getElementById('tb-total-reviews').textContent = `(${data.total_reviews} reviews)`;
+        }
+
+        const list = document.getElementById('tb-reviews-list');
+        data.reviews.forEach(r => {
+          const stars = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
+          list.innerHTML += `
+            <div class="tb-review-card">
+              <div class="tb-stars">${stars}</div>
+              <strong>${r.customer_name}</strong>
+              <p>${r.review_text}</p>
+            </div>
+          `;
+        });
+      })
+      .catch(console.error);
+
+    // Submit review
+    document.getElementById('tb-review-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const body = {
+        product_sku: sku,
+        customer_name: document.getElementById('tb-name').value,
+        rating: parseInt(document.getElementById('tb-rating').value),
+        review_text: document.getElementById('tb-review-text').value,
+      };
+      const res = await fetch(`${appBase}/api/reviews`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        alert('Thank you for your review!');
+        location.reload();
+      }
+    });
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Product Reviews",
+  "target": "section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "title",
+      "label": "Section Title",
+      "default": "Customer Reviews"
+    }
+  ]
+}
+{% endschema %}

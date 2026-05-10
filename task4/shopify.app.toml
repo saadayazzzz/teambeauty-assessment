@@ -1,0 +1,19 @@
+name = "team-beauty-reviews"
+client_id = "YOUR_SHOPIFY_CLIENT_ID"
+
+[access_scopes]
+scopes = "read_products,write_products"
+
+[auth]
+redirect_urls = [ "https://your-app-url.com/auth/callback" ]
+
+[webhooks]
+api_version = "2024-01"
+
+[app_proxy]
+url = "https://your-app-url.com/storefront"
+subpath = "reviews"
+prefix = "apps"
+
+[pos]
+embedded = false

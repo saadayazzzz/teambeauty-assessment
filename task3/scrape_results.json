@@ -1,0 +1,122 @@
+[
+  {
+    "search_term": "bulbasaur",
+    "product_name": "Beedrill",
+    "price": 168.0,
+    "seller_supplier": "ScrapeMe Store",
+    "url": "https://scrapeme.live/shop/Beedrill/",
+    "date_scraped": "2026-05-09T22:36:00.541788",
+    "price_changed": false,
+    "previous_price": null
+  },
+  {
+    "search_term": "bulbasaur",
+    "product_name": "Ekans",
+    "price": 55.0,
+    "seller_supplier": "ScrapeMe Store",
+    "url": "https://scrapeme.live/shop/Ekans/",
+    "date_scraped": "2026-05-09T22:36:00.588706",
+    "price_changed": false,
+    "previous_price": null
+  },
+  {
+    "search_term": "bulbasaur",
+    "product_name": "Squirtle",
+    "price": 130.0,
+    "seller_supplier": "ScrapeMe Store",
+    "url": "https://scrapeme.live/shop/Squirtle/",
+    "date_scraped": "2026-05-09T22:36:00.629299",
+    "price_changed": false,
+    "previous_price": null
+  },
+  {
+    "search_term": "charmander",
+    "product_name": "Pidgeot",
+    "price": 185.0,
+    "seller_supplier": "ScrapeMe Store",
+    "url": "https://scrapeme.live/shop/Pidgeot/",
+    "date_scraped": "2026-05-09T22:36:23.305677",
+    "price_changed": false,
+    "previous_price": null
+  },
+  {
+    "search_term": "charmander",
+    "product_name": "Caterpie",
+    "price": 73.0,
+    "seller_supplier": "ScrapeMe Store",
+    "url": "https://scrapeme.live/shop/Caterpie/",
+    "date_scraped": "2026-05-09T22:36:23.348059",
+    "price_changed": false,
+    "previous_price": null
+  },
+  {
+    "search_term": "charmander",
+    "product_name": "Pidgey",
+    "price": 159.0,
+    "seller_supplier": "ScrapeMe Store",
+    "url": "https://scrapeme.live/shop/Pidgey/",
+    "date_scraped": "2026-05-09T22:36:23.392017",
+    "price_changed": false,
+    "previous_price": null
+  },
+  {
+    "search_term": "pikachu",
+    "product_name": "Arbok",
+    "price": 182.0,
+    "seller_supplier": "ScrapeMe Store",
+    "url": "https://scrapeme.live/shop/Arbok/",
+    "date_scraped": "2026-05-09T22:37:15.935304",
+    "price_changed": false,
+    "previous_price": null
+  },
+  {
+    "search_term": "pikachu",
+    "product_name": "Fearow",
+    "price": 95.0,
+    "seller_supplier": "ScrapeMe Store",
+    "url": "https://scrapeme.live/shop/Fearow/",
+    "date_scraped": "2026-05-09T22:37:15.991764",
+    "price_changed": false,
+    "previous_price": null
+  },
+  {
+    "search_term": "pikachu",
+    "product_name": "Raticate",
+    "price": 60.0,
+    "seller_supplier": "ScrapeMe Store",
+    "url": "https://scrapeme.live/shop/Raticate/",
+    "date_scraped": "2026-05-09T22:37:16.039408",
+    "price_changed": false,
+    "previous_price": null
+  },
+  {
+    "search_term": "jigglypuff",
+    "product_name": "Beedrill",
+    "price": 168.0,
+    "seller_supplier": "ScrapeMe Store",
+    "url": "https://scrapeme.live/shop/Beedrill/",
+    "date_scraped": "2026-05-09T22:37:46.206754",
+    "price_changed": false,
+    "previous_price": null
+  },
+  {
+    "search_term": "jigglypuff",
+    "product_name": "Wartortle",
+    "price": 123.0,
+    "seller_supplier": "ScrapeMe Store",
+    "url": "https://scrapeme.live/shop/Wartortle/",
+    "date_scraped": "2026-05-09T22:37:46.239019",
+    "price_changed": false,
+    "previous_price": null
+  },
+  {
+    "search_term": "jigglypuff",
+    "product_name": "Fearow",
+    "price": 95.0,
+    "seller_supplier": "ScrapeMe Store",
+    "url": "https://scrapeme.live/shop/Fearow/",
+    "date_scraped": "2026-05-09T22:37:46.290264",
+    "price_changed": false,
+    "previous_price": null
+  }
+]
