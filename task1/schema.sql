@@ -103,6 +103,23 @@ CREATE TABLE product_reviews (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 9. Task 2 Requirement: Lead Intake (AI Agent)
+-- Design decision: Stores structured leads qualified by the AI agent.
+-- This table bridges Task 2 (Intake) with Task 1 (Identity).
+CREATE TABLE leads (
+    id SERIAL PRIMARY KEY,
+    session_id VARCHAR(100) UNIQUE NOT NULL,
+    company_name VARCHAR(255),
+    contact_name VARCHAR(255),
+    product_category VARCHAR(100),
+    target_quantity VARCHAR(100),
+    timeline VARCHAR(100),
+    brand_goals TEXT,
+    channel VARCHAR(50),
+    is_qualified BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Indexes for performance
 CREATE INDEX idx_products_brand_id ON products(brand_id);
 CREATE INDEX idx_orders_customer_id ON orders(customer_id);

@@ -1,120 +1,79 @@
-# Team Beauty & Cosmix — Technical Assessment
+# Team Beauty & Cosmix — Technical Assessment (V2)
 
-This repository contains the full implementation of the four-task technical assessment for the **Team Beauty & Cosmix** Technical Architect / Software Engineer role.
+This repository contains the improved implementation of the technical assessment for the **Team Beauty & Cosmix** role. This version specifically addresses the initial evaluation feedback regarding professional targets, UI thickness, and cross-task consistency.
 
 ---
 
-## 🚀 Quick Start (All Tasks)
+## 🚀 Key Improvements in V2
+- **Task 2 (AI Agent)**: Added a **Premium Bilingual GUI** for easier testing and Loom recording. Now saves qualified leads to the shared PostgreSQL database.
+- **Task 3 (Scraper)**: Upgraded from a "toy site" to a **real beauty retailer (Fragrance Direct)**. Implemented professional-grade search logic and dynamic content handling.
+- **Task 4 (Shopify App)**: Built a **Polaris-inspired Admin Dashboard** and a **Live Storefront Simulation** to demonstrate the app in a realistic context.
+- **Cross-Task Consistency**: Implemented a unified `database.py` utility. All tasks now point to the same PostgreSQL schema.
+- **Cleanup**: Removed extraneous files (`mc.html`) and refined the documentation.
+
+---
+
+## 🛠 Setup & Installation
 
 ### 1. Prerequisites
 - **Python 3.10+**
-- **PostgreSQL** (Optional — all tasks have in-memory/JSON fallbacks)
-- **Playwright** (Required for Task 3)
+- **PostgreSQL** (Running locally on default port 5432)
 - **API Keys**: 
-  - `OPENAI_API_KEY`: Required for Task 2 (Bilingual Agent).
-  - `ANTHROPIC_API_KEY`: Required for Task 4 (AI Review Summaries).
+  - `OPENAI_API_KEY`: For Task 2 (Bilingual Agent).
+  - `ANTHROPIC_API_KEY`: For Task 4 (AI Review Summaries).
 
 ### 2. Environment Setup
-Create a `.env` file in the root directory (already partially set up for you):
+Create a `.env` file in the root:
 ```bash
-OPENAI_API_KEY=sk-your-key-here
-ANTHROPIC_API_KEY=sk-ant-your-key-here
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+DB_HOST=localhost
+DB_NAME=teambeauty
+DB_USER=postgres
+DB_PASSWORD=postgres
 ```
 
-### 3. Installation
+### 3. Initialize Database
+Ensure PostgreSQL is running, then run the initialization script to create the unified schema:
 ```bash
-# Install dependencies for all tasks
-pip install -r task2/requirements.txt
-pip install -r task3/requirements.txt
-pip install -r task4/requirements.txt
-playwright install chromium
+python database.py
 ```
 
 ---
 
-## 📂 Repository Structure & Task Overview
+## 📂 Task Deep-Dive
 
-### **Task 1: Database Design & AI Knowledge Base**
-- **1A (PostgreSQL Schema)**: `task1/schema.sql`. A normalized schema designed for multi-brand customer identity, shared products, and formulation tracking.
-- **1B (Vector KB)**: `task1/vector_kb.py`. A local RAG system using **ChromaDB** and **Sentence Transformers** (`all-MiniLM-L6-v2`).
-- **Data**: `task1/data.csv` contains packaging details (MOQ, lead times) used to train the KB.
+### **Task 1: Unified Database & Vector KB**
+- **Schema**: `task1/schema.sql`. A single source of truth for all tasks.
+- **Vector KB**: `task1/vector_kb.py`. Uses ChromaDB to provide technical context (MOQs, lead times) to the AI Agent.
 
-### **Task 2: Bilingual AI Customer Intake Agent**
-- **Core**: `task2/main.py` (FastAPI).
-- **Features**: 
-  - Naturally detects and responds in **English and Urdu**.
-  - Qualifies leads by extracting company name, contact info, and product needs.
-  - **RAG Integration**: Queries Task 1's Vector KB to answer MOQ/packaging questions in real-time.
-- **Run**: `cd task2 && uvicorn main:app --port 8000`
+### **Task 2: Bilingual AI Intake Agent**
+- **Interface**: Run `uvicorn task2.main:app --port 8000` and visit `http://localhost:8000/gui`.
+- **Features**: English/Urdu detection, structured lead extraction, and automated DB saving once qualified.
 
-### **Task 3: Price Comparison Scraper**
-- **Core**: `task3/scraper.py` (Playwright).
-- **Target**: `scrapeme.live/shop`. (Targeted for 100% reliability during evaluation; demonstrates the same logic required for Amazon/eBay).
-- **Features**: 
-  - Stores data in `price_comparisons` table.
-  - **Price Change Detection**: Compares current prices against previous scrapes and flags changes.
-  - **Scheduling**: Includes APScheduler for 6-hour interval scraping.
-- **Run**: `cd task3 && python scraper.py`
+### **Task 3: Professional Price Scraper**
+- **Target**: `fragrancedirect.co.uk` (Real Beauty Retailer).
+- **Run**: `cd task3 && python scraper.py`.
+- **Logic**: Searches for beauty terms, extracts real prices, and flags changes against previous runs in the DB.
 
-### **Task 4: Shopify Product Review App**
-- **Backend**: `task4/app.py` (FastAPI).
-- **Shopify Config**: `task4/shopify.app.toml`.
-- **Theme Extension**: `task4/extensions/product-reviews/` (Liquid App Block).
-- **Features**: 
-  - Accepts product reviews via API.
-  - **AI Summaries**: Uses **Claude API** to generate one-sentence sentiment summaries for products.
-- **Run**: `cd task4 && uvicorn app:app --port 8001`
+### **Task 4: Shopify AI Review App**
+- **Interface**: Run `uvicorn task4.app:app --port 8001`.
+- **Admin**: `http://localhost:8001/admin` (Polaris UI).
+- **Storefront**: `http://localhost:8001/storefront` (Live product page simulation).
+- **AI**: Uses Claude to synthesize one-sentence sentiment summaries from product reviews.
 
 ---
 
-## 🔗 Cross-Task Consistency
-This project was designed as a single integrated ecosystem:
-- **Unified Database**: All tasks share the schema defined in `task1/schema.sql`.
-- **Knowledge Flow**: Task 2's AI agent directly imports and queries the Task 1 Vector KB.
-- **Shared Identifiers**: Product SKUs link Task 1 (products), Task 3 (pricing), and Task 4 (reviews).
+## 📹 Loom Recording Guide (For Candidate)
+To secure the remaining points, record three short Loom videos using the new GUIs:
+
+1.  **Task 2 Demo**: Open `localhost:8000/gui`. Chat in Urdu/English. Show the "Lead Status" panel updating in real-time. Show the final "Qualified" state.
+2.  **Task 3 Demo**: Run `python task3/scraper.py` in the terminal. Show the log output finding real products on Fragrance Direct. Show the "Scrape Summary" in the terminal.
+3.  **Task 4 Demo**: Open `localhost:8001/storefront`. Show the AI summary. Go to `localhost:8001/admin`, add a new review, and then refresh the storefront to show the AI summary updated (Claude synthesis).
 
 ---
-
----
-
-## 🤖 How AI was Used
-This project leverages multiple AI models to solve specific domain challenges:
-
-1.  **OpenAI (GPT-4o-mini)**: 
-    - **Usage**: Powers the Task 2 Customer Agent.
-    - **How**: Used for **Zero-shot Language Detection** (switching between English and Urdu without external libraries) and **Structured Data Extraction**. It identifies lead details (Company, SKU, Qty) from unstructured chat and formats them into JSON for the backend.
-2.  **Anthropic (Claude 3.5 Haiku)**:
-    - **Usage**: Powers the Task 4 Review Summarizer.
-    - **How**: Used for **Sentiment Synthesis**. It processes multiple customer reviews and produces a single, high-signal sentence that captures the "vibe" of the feedback (e.g., "Users praise the efficacy but suggest a pump dispenser").
-3.  **Sentence Transformers (all-MiniLM-L6-v2)**:
-    - **Usage**: Powers the Task 1 Vector KB.
-    - **How**: Used for **Semantic Search**. It converts CSV data into mathematical embeddings so the Task 2 agent can retrieve technical specs by "meaning" rather than just keyword matching.
 
 ## ⚖️ Tradeoffs & Design Decisions
-1.  **Playwright over Scrapy**: Chosen because modern e-commerce sites (and Amazon/cosmetics targets) are heavily JS-rendered. Playwright handles this natively as a headless browser.
-2.  **Local Embeddings for Task 1**: Using local transformers ensures the Vector KB works instantly without API credits, while OpenAI/Anthropic are reserved for high-level reasoning tasks.
-3.  **Unified PostgreSQL Schema**: Rather than four isolated databases, everything points to Task 1's `schema.sql`. This allows the Scraper (Task 3) to influence the AI Agent's pricing knowledge (Task 2) and the Review App's product logic (Task 4).
-4.  **FastAPI for Shopify**: While Shopify typically uses Node/Remix, I chose FastAPI for consistency across all tasks, allowing for a unified Python-based codebase that is easier to maintain and audit.
-
----
-
-## 🛠 Manual Testing (CLI / Curl)
-
-**Task 1 (Vector Query):**
-```bash
-cd task1 && python vector_kb.py --query "What is the MOQ for glass dropper bottles?"
-```
-
-**Task 2 (Chat API):**
-```bash
-curl -X POST http://localhost:8000/chat \
-  -H "Content-Type: application/json" \
-  -d '{"session_id": "test_01", "channel": "web", "message": "mujhe serum ke liye bottles chahiye"}'
-```
-
-**Task 4 (Review API):**
-```bash
-curl -X POST http://localhost:8001/api/reviews \
-  -H "Content-Type: application/json" \
-  -d '{"product_sku": "SKU-GD30", "customer_name": "Ali", "rating": 5, "review_text": "Great quality!"}'
-```
+- **Unified DB**: All tasks share a single PostgreSQL instance, ensuring that a lead captured in Task 2 or a price found in Task 3 can theoretically influence the same business logic.
+- **FastAPI for Frontend**: While these are backend tasks, I've added lightweight FastAPI-served GUIs to ensure the logic is verifiable and visual for the evaluator.
+- **Playwright over Scrapy**: Essential for modern beauty sites that rely on heavy JavaScript for product grids and price rendering.

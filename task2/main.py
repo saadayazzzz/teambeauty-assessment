@@ -16,6 +16,7 @@ import os
 import sys
 from typing import Optional
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from openai import OpenAI
 
@@ -251,8 +252,41 @@ async def chat(request: ChatRequest):
     
     # Check completeness
     all_collected = all(session["fields"].get(f) is not None for f in REQUIRED_FIELDS)
-    if all_collected:
+    if all_collected and not session["complete"]:
         session["complete"] = True
+        # Save to shared database for cross-task consistency
+        conn = get_db_connection()
+        if conn:
+            try:
+                cur = conn.cursor()
+                cur.execute(
+                    """
+                    INSERT INTO leads 
+                        (session_id, company_name, contact_name, product_category, target_quantity, timeline, brand_goals, channel, is_qualified)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (session_id) DO UPDATE SET
+                        company_name = EXCLUDED.company_name,
+                        contact_name = EXCLUDED.contact_name,
+                        is_qualified = TRUE
+                    """,
+                    (
+                        request.session_id,
+                        session["fields"]["company_name"],
+                        session["fields"]["contact_name"],
+                        session["fields"]["product_category"],
+                        session["fields"]["target_quantity"],
+                        session["fields"]["timeline"],
+                        session["fields"]["brand_goals"],
+                        request.channel,
+                        True
+                    )
+                )
+                conn.commit()
+                cur.close()
+                conn.close()
+                print(f"  [DB] Saved qualified lead: {request.session_id}")
+            except Exception as e:
+                print(f"  [DB] Error saving lead: {e}")
     
     # Save messages to session history
     session["messages"].append({"role": "user", "content": request.message})
@@ -298,10 +332,136 @@ async def get_lead(session_id: str):
     )
 
 
+@app.get("/gui", response_class=HTMLResponse)
+async def chat_gui():
+    """Premium Chat Interface for Task 2 demonstration."""
+    return """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Team Beauty | AI Assistant</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+            body { background: #f9fafb; font-family: 'Inter', sans-serif; }
+            .chat-container { height: calc(100vh - 160px); }
+            .message-urdu { direction: rtl; font-family: 'Noto Nastaliq Urdu', serif; }
+            .glass { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); }
+        </style>
+    </head>
+    <body class="flex flex-col h-screen">
+        <header class="p-6 glass border-b flex justify-between items-center sticky top-0 z-10">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-black rounded-full flex items-center justify-center text-white font-bold">01</div>
+                <div>
+                    <h1 class="font-bold text-gray-900 leading-tight">Agent 01</h1>
+                    <p class="text-xs text-green-600 flex items-center gap-1">
+                        <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> Online | Bilingual
+                    </p>
+                </div>
+            </div>
+            <div class="text-xs text-gray-400 font-medium tracking-widest uppercase">Intake System</div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-6 space-y-6 chat-container" id="chatBox">
+            <div class="flex justify-start">
+                <div class="bg-white border p-4 rounded-2xl rounded-tl-none max-w-[80%] shadow-sm">
+                    Hello! I'm here to help you with your private labelling needs. How can I assist you today?
+                    <br><br>
+                    اسلام علیکم! میں آپ کی پرائیویٹ لیبلنگ کی ضروریات میں مدد کے لیے حاضر ہوں۔ میں آج آپ کی کیسے مدد کر سکتا ہوں؟
+                </div>
+            </div>
+        </main>
+
+        <aside id="leadPanel" class="hidden fixed right-6 top-32 w-80 bg-white border rounded-2xl p-6 shadow-xl animate-fade-in">
+            <h3 class="font-bold text-sm uppercase tracking-widest text-gray-400 mb-4">Lead Status</h3>
+            <div id="fieldList" class="space-y-3"></div>
+            <div id="completionStatus" class="mt-6 pt-6 border-t hidden">
+                <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">✓ QUALIFIED</span>
+            </div>
+        </aside>
+
+        <footer class="p-6 glass border-t sticky bottom-0">
+            <form id="chatForm" class="max-w-4xl mx-auto flex gap-4">
+                <input type="text" id="msgInput" placeholder="Type your message (English or Urdu)..." 
+                       class="flex-1 border rounded-full px-6 py-3 focus:ring-2 focus:ring-black outline-none transition">
+                <button type="submit" class="bg-black text-white px-8 py-3 rounded-full font-bold hover:bg-gray-800 transition">Send</button>
+            </form>
+        </footer>
+
+        <script>
+            const chatBox = document.getElementById('chatBox');
+            const chatForm = document.getElementById('chatForm');
+            const msgInput = document.getElementById('msgInput');
+            const sessionId = 'demo_' + Math.random().toString(36).substr(2, 9);
+
+            function addMessage(text, isUser) {
+                const div = document.createElement('div');
+                div.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
+                
+                // Simple Urdu detection for alignment
+                const isUrdu = /[\\u0600-\\u06FF]/.test(text);
+                
+                div.innerHTML = `
+                    <div class="${isUser ? 'bg-black text-white rounded-tr-none' : 'bg-white border text-gray-800 rounded-tl-none'} 
+                                p-4 rounded-2xl max-w-[80%] shadow-sm ${isUrdu ? 'message-urdu' : ''}">
+                        ${text}
+                    </div>
+                `;
+                chatBox.appendChild(div);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+
+            function updateLeadPanel(fields, complete) {
+                const panel = document.getElementById('leadPanel');
+                const list = document.getElementById('fieldList');
+                panel.classList.remove('hidden');
+                
+                list.innerHTML = Object.entries(fields).map(([k, v]) => `
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-400 capitalize">${k.replace('_', ' ')}</span>
+                        <span class="${v ? 'text-gray-900 font-medium' : 'text-gray-300 italic text-xs'}">${v || 'Pending'}</span>
+                    </div>
+                `).join('');
+
+                if (complete) {
+                    document.getElementById('completionStatus').classList.remove('hidden');
+                }
+            }
+
+            chatForm.onsubmit = async (e) => {
+                e.preventDefault();
+                const msg = msgInput.value.trim();
+                if (!msg) return;
+
+                addMessage(msg, true);
+                msgInput.value = '';
+
+                try {
+                    const res = await fetch('/chat', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ session_id: sessionId, channel: 'web_demo', message: msg })
+                    });
+                    const data = await res.json();
+                    addMessage(data.reply, false);
+                    updateLeadPanel(data.fields_collected, data.complete);
+                } catch (err) {
+                    addMessage("Error connecting to agent. Please check if the server is running.", false);
+                }
+            };
+        </script>
+    </body>
+    </html>
+    """
+
+
 @app.get("/")
 async def root():
     return {
         "service": "Team Beauty — Bilingual AI Intake Agent",
+        "demo_gui": "/gui",
         "endpoints": {
             "POST /chat": "Send a message to the agent",
             "GET /lead/{session_id}": "Get the lead summary"

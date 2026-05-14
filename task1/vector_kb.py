@@ -1,4 +1,5 @@
 import argparse
+import os
 import pandas as pd
 import chromadb
 from chromadb.utils import embedding_functions
@@ -7,9 +8,12 @@ import warnings
 # Suppress some noisy warnings from sentence-transformers if they occur
 warnings.filterwarnings("ignore")
 
+# Base directory of the script
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # Initialize ChromaDB client (local persistent storage)
-# We store it in a local directory 'chroma_db'
-client = chromadb.PersistentClient(path="./chroma_db")
+# We store it in a local directory 'chroma_db' relative to the script
+client = chromadb.PersistentClient(path=os.path.join(BASE_DIR, "chroma_db"))
 
 # Use the default Sentence Transformer embedding function (all-MiniLM-L6-v2)
 # This is an open-source alternative that runs locally and doesn't require an API key
@@ -21,8 +25,11 @@ collection = client.get_or_create_collection(
     embedding_function=sentence_transformer_ef
 )
 
-def populate_database(csv_path="data.csv"):
+def populate_database(csv_path=None):
     """Reads the CSV, chunks the data, and stores it in ChromaDB."""
+    if csv_path is None:
+        csv_path = os.path.join(BASE_DIR, "data.csv")
+    
     try:
         df = pd.read_csv(csv_path)
     except FileNotFoundError:

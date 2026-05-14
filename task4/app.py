@@ -26,14 +26,10 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from anthropic import Anthropic
 
-# --- Configuration ---
-DB_CONFIG = {
-    "host": os.getenv("DB_HOST", "localhost"),
-    "port": os.getenv("DB_PORT", "5432"),
-    "dbname": os.getenv("DB_NAME", "teambeauty"),
-    "user": os.getenv("DB_USER", "postgres"),
-    "password": os.getenv("DB_PASSWORD", "postgres"),
-}
+# Add root to path to import shared database utility
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from database import get_db_connection
 
 CLAUDE_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
@@ -80,18 +76,9 @@ class ReviewSummaryResponse(BaseModel):
 
 
 # --- Database helpers ---
-def get_db():
-    """Get a database connection. Returns None if unavailable."""
-    try:
-        return psycopg2.connect(**DB_CONFIG)
-    except Exception as e:
-        print(f"DB unavailable: {e}")
-        return None
-
-
 def db_save_review(review: ReviewSubmission) -> dict:
     """Save a review to the database."""
-    conn = get_db()
+    conn = get_db_connection()
     if conn:
         try:
             cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -130,7 +117,7 @@ def db_save_review(review: ReviewSubmission) -> dict:
 
 def db_get_reviews(product_sku: str) -> list:
     """Get all reviews for a product."""
-    conn = get_db()
+    conn = get_db_connection()
     if conn:
         try:
             cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -152,7 +139,7 @@ def db_get_reviews(product_sku: str) -> list:
 
 def db_save_ai_summary(product_sku: str, summary: str):
     """Update the AI summary for reviews of a product."""
-    conn = get_db()
+    conn = get_db_connection()
     if conn:
         try:
             cur = conn.cursor()
@@ -263,113 +250,118 @@ async def get_reviews(product_sku: str):
     )
 
 
-# --- Shopify Admin Embed (simplified) ---
+# --- Shopify Admin Embed (Polaris Inspired) ---
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_panel():
-    """
-    Shopify admin embedded panel.
-    In a real Shopify app, this would be served within the Shopify admin iframe
-    using the App Bridge library. This is a simplified standalone version
-    that demonstrates the review management UI.
-    """
     return """
     <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Team Beauty Reviews — Admin</title>
+        <title>Team Beauty | Review Management</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
         <style>
-            * { box-sizing: border-box; margin: 0; padding: 0; }
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f6f6f7; color: #202223; padding: 20px; }
-            .container { max-width: 800px; margin: 0 auto; }
-            h1 { font-size: 20px; margin-bottom: 20px; }
-            .card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-            .card h2 { font-size: 16px; margin-bottom: 12px; }
-            input, textarea, select { width: 100%; padding: 8px 12px; border: 1px solid #c9cccf; border-radius: 6px; margin-bottom: 10px; font-size: 14px; }
-            button { background: #008060; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; }
-            button:hover { background: #006e52; }
-            .review { border-bottom: 1px solid #e1e3e5; padding: 12px 0; }
-            .review:last-child { border-bottom: none; }
-            .stars { color: #f5a623; font-size: 16px; }
-            .summary-box { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
-            .summary-box h3 { color: #166534; margin-bottom: 8px; }
-            #loading { display: none; color: #666; }
+            body { font-family: 'Inter', sans-serif; background-color: #f1f2f4; color: #202223; }
+            .polaris-card { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e1e3e5; }
+            .polaris-btn { background: #008060; color: white; padding: 8px 16px; border-radius: 6px; font-weight: 500; transition: all 0.2s; }
+            .polaris-btn:hover { background: #006e52; }
         </style>
     </head>
-    <body>
-        <div class="container">
-            <h1>🧴 Product Reviews — Admin Dashboard</h1>
+    <body class="p-8">
+        <div class="max-w-5xl mx-auto">
+            <header class="flex justify-between items-center mb-8">
+                <div>
+                    <h1 class="text-2xl font-semibold text-gray-900">Product Reviews</h1>
+                    <p class="text-gray-500">Manage customer feedback and AI-generated insights.</p>
+                </div>
+                <a href="/storefront" target="_blank" class="text-indigo-600 font-medium hover:underline">View Live Store →</a>
+            </header>
 
-            <div class="card">
-                <h2>Look Up Reviews</h2>
-                <input type="text" id="skuInput" placeholder="Enter Product SKU (e.g., TB-SERUM-001)" />
-                <button onclick="loadReviews()">Load Reviews</button>
-                <span id="loading"> Loading...</span>
-            </div>
-
-            <div id="summarySection" style="display:none;">
-                <div class="summary-box">
-                    <h3>🤖 AI Summary</h3>
-                    <p id="aiSummary"></p>
-                    <p style="margin-top:8px; font-size:13px; color:#666;">
-                        <span id="totalReviews"></span> reviews · Average: <span id="avgRating"></span>/5
-                    </p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="polaris-card p-6">
+                    <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-2">Total Reviews</h3>
+                    <p class="text-3xl font-bold text-gray-900" id="statTotal">-</p>
+                </div>
+                <div class="polaris-card p-6">
+                    <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-2">Avg. Sentiment</h3>
+                    <p class="text-3xl font-bold text-green-600" id="statSentiment">Positive</p>
+                </div>
+                <div class="polaris-card p-6">
+                    <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-2">AI Summaries</h3>
+                    <p class="text-3xl font-bold text-gray-900">Active</p>
                 </div>
             </div>
 
-            <div id="reviewsList"></div>
+            <div class="polaris-card mb-8">
+                <div class="p-6 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold">Review Lookup</h2>
+                </div>
+                <div class="p-6 flex gap-4">
+                    <input type="text" id="skuInput" placeholder="Enter Product SKU (e.g., SKU-GD30)" class="flex-1 border border-gray-300 rounded-md px-4 py-2 focus:ring-2 focus:ring-green-500 outline-none">
+                    <button onclick="loadReviews()" class="polaris-btn">Analyze Reviews</button>
+                </div>
+            </div>
 
-            <div class="card" style="margin-top: 24px;">
-                <h2>Submit a Test Review</h2>
-                <input type="text" id="testSku" placeholder="Product SKU" />
-                <input type="text" id="testName" placeholder="Customer Name" />
-                <select id="testRating">
+            <div id="aiSummarySection" class="hidden mb-8">
+                <div class="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100 rounded-xl p-6 shadow-sm">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-xl">🤖</span>
+                        <h3 class="font-bold text-emerald-900 uppercase text-sm tracking-widest">AI Synthesis Summary</h3>
+                    </div>
+                    <p id="aiSummary" class="text-lg text-emerald-800 leading-relaxed italic"></p>
+                </div>
+            </div>
+
+            <div id="reviewsList" class="space-y-4"></div>
+            
+            <div class="polaris-card mt-12 p-6">
+                <h2 class="text-lg font-semibold mb-4">Submit a Test Review</h2>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <input type="text" id="testSku" placeholder="Product SKU" class="border border-gray-300 rounded-md px-4 py-2">
+                    <input type="text" id="testName" placeholder="Customer Name" class="border border-gray-300 rounded-md px-4 py-2">
+                </div>
+                <select id="testRating" class="w-full border border-gray-300 rounded-md px-4 py-2 mb-4">
                     <option value="5">⭐⭐⭐⭐⭐ (5)</option>
                     <option value="4">⭐⭐⭐⭐ (4)</option>
                     <option value="3">⭐⭐⭐ (3)</option>
                     <option value="2">⭐⭐ (2)</option>
                     <option value="1">⭐ (1)</option>
                 </select>
-                <textarea id="testReview" placeholder="Write your review..." rows="3"></textarea>
-                <button onclick="submitReview()">Submit Review</button>
+                <textarea id="testReview" placeholder="Write your review..." rows="3" class="w-full border border-gray-300 rounded-md px-4 py-2 mb-4"></textarea>
+                <button onclick="submitReview()" class="polaris-btn w-full">Submit Review</button>
             </div>
         </div>
 
         <script>
-            const API = window.location.origin;
-
             async function loadReviews() {
                 const sku = document.getElementById('skuInput').value.trim();
-                if (!sku) return alert('Enter a product SKU');
-                document.getElementById('loading').style.display = 'inline';
+                if (!sku) return;
+                
+                const res = await fetch(`/api/reviews/${sku}`);
+                const data = await res.json();
 
-                try {
-                    const res = await fetch(`${API}/api/reviews/${sku}`);
-                    const data = await res.json();
-
-                    document.getElementById('summarySection').style.display = 'block';
-                    document.getElementById('aiSummary').textContent = data.ai_summary;
-                    document.getElementById('totalReviews').textContent = data.total_reviews;
-                    document.getElementById('avgRating').textContent = data.average_rating;
-
-                    const list = document.getElementById('reviewsList');
-                    if (data.reviews.length === 0) {
-                        list.innerHTML = '<div class="card"><p>No reviews found for this SKU.</p></div>';
-                    } else {
-                        list.innerHTML = data.reviews.map(r => `
-                            <div class="card review">
-                                <div class="stars">${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</div>
-                                <strong>${r.customer_name}</strong>
-                                <p>${r.review_text}</p>
-                                <small style="color:#666;">${r.created_at}</small>
-                            </div>
-                        `).join('');
-                    }
-                } catch (e) {
-                    alert('Error loading reviews: ' + e.message);
+                document.getElementById('statTotal').textContent = data.total_reviews;
+                
+                if (data.total_reviews > 0) {
+                    document.getElementById('aiSummarySection').classList.remove('hidden');
+                    document.getElementById('aiSummary').textContent = `"${data.ai_summary}"`;
                 }
-                document.getElementById('loading').style.display = 'none';
+
+                const list = document.getElementById('reviewsList');
+                list.innerHTML = data.reviews.map(r => `
+                    <div class="polaris-card p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <span class="text-yellow-400 text-lg">${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</span>
+                                <h4 class="font-bold text-gray-900">${r.customer_name}</h4>
+                            </div>
+                            <span class="text-xs text-gray-400">${new Date(r.created_at).toLocaleDateString()}</span>
+                        </div>
+                        <p class="text-gray-700 leading-relaxed">${r.review_text}</p>
+                    </div>
+                `).join('') || '<div class="text-center py-12 text-gray-400">No reviews found for this product.</div>';
             }
 
             async function submitReview() {
@@ -379,24 +371,14 @@ async def admin_panel():
                     rating: parseInt(document.getElementById('testRating').value),
                     review_text: document.getElementById('testReview').value.trim(),
                 };
-                if (!body.product_sku || !body.customer_name || !body.review_text) {
-                    return alert('Fill in all fields');
-                }
-                try {
-                    const res = await fetch(`${API}/api/reviews`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify(body),
-                    });
-                    if (res.ok) {
-                        alert('Review submitted!');
-                        document.getElementById('testReview').value = '';
-                    } else {
-                        const err = await res.json();
-                        alert('Error: ' + JSON.stringify(err));
-                    }
-                } catch (e) {
-                    alert('Error: ' + e.message);
+                const res = await fetch('/api/reviews', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(body),
+                });
+                if (res.ok) {
+                    alert('Review submitted!');
+                    loadReviews();
                 }
             }
         </script>
@@ -404,93 +386,99 @@ async def admin_panel():
     </html>
     """
 
-
-# --- Shopify Storefront App Block (Theme Extension) ---
-@app.get("/storefront/reviews/{product_sku}", response_class=HTMLResponse)
-async def storefront_reviews_block(product_sku: str):
-    """
-    Storefront App Block — renders reviews on the product page.
-    In a real Shopify app, this would be a Liquid theme extension (App Block).
-    This endpoint simulates the rendered output that would appear on the product page.
-    The Shopify App Proxy would route requests to this endpoint.
-    """
-    reviews = db_get_reviews(product_sku)
-    ai_summary = generate_ai_summary(reviews) if reviews else ""
-    avg_rating = sum(r["rating"] for r in reviews) / len(reviews) if reviews else 0
-
-    reviews_html = ""
-    for r in reviews:
-        stars = "★" * r["rating"] + "☆" * (5 - r["rating"])
-        reviews_html += f"""
-        <div class="tb-review">
-            <div class="tb-stars">{stars}</div>
-            <strong>{r['customer_name']}</strong>
-            <p>{r['review_text']}</p>
-        </div>
-        """
-
-    return f"""
-    <div class="tb-reviews-widget" style="font-family: sans-serif; max-width: 600px; margin: 20px auto; padding: 20px;">
-        <h3>Customer Reviews</h3>
-        {f'<div style="background:#f0fdf4;padding:12px;border-radius:8px;margin-bottom:16px;"><strong>Summary:</strong> {ai_summary}</div>' if ai_summary else ''}
-        {f'<p>Average Rating: {"★" * round(avg_rating)}{"☆" * (5 - round(avg_rating))} ({avg_rating:.1f}/5 from {len(reviews)} reviews)</p>' if reviews else ''}
-        
-        {reviews_html if reviews else '<p>No reviews yet. Be the first to review this product!</p>'}
-        
-        <hr style="margin:20px 0;">
-        <h4>Write a Review</h4>
-        <form id="tb-review-form" onsubmit="return submitStorefrontReview(event)">
-            <input type="hidden" name="product_sku" value="{product_sku}" />
-            <div style="margin-bottom:10px;">
-                <input type="text" name="customer_name" placeholder="Your Name" required style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;" />
+# --- Live Storefront Simulator ---
+@app.get("/storefront", response_class=HTMLResponse)
+async def storefront_sim():
+    return """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Team Beauty | Hydrating Glow Serum</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+            body { font-family: 'Helvetica Neue', Arial, sans-serif; }
+            .btn-buy { background: #000; color: #fff; width: 100%; padding: 16px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        </style>
+    </head>
+    <body class="bg-white">
+        <nav class="border-b p-4 flex justify-between items-center px-12">
+            <div class="font-black text-2xl tracking-tighter">TEAM BEAUTY.</div>
+            <div class="space-x-8 text-sm font-medium">
+                <a href="#">SKINCARE</a>
+                <a href="#">MAKEUP</a>
+                <a href="#">NEW ARRIVALS</a>
             </div>
-            <div style="margin-bottom:10px;">
-                <select name="rating" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;">
-                    <option value="5">⭐⭐⭐⭐⭐ (5)</option>
-                    <option value="4">⭐⭐⭐⭐ (4)</option>
-                    <option value="3">⭐⭐⭐ (3)</option>
-                    <option value="2">⭐⭐ (2)</option>
-                    <option value="1">⭐ (1)</option>
-                </select>
-            </div>
-            <div style="margin-bottom:10px;">
-                <textarea name="review_text" placeholder="Write your review..." rows="3" required style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;"></textarea>
-            </div>
-            <button type="submit" style="background:#008060;color:white;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;">Submit Review</button>
-        </form>
-    </div>
-    <script>
-    async function submitStorefrontReview(e) {{
-        e.preventDefault();
-        const form = e.target;
-        const body = {{
-            product_sku: form.product_sku.value,
-            customer_name: form.customer_name.value,
-            rating: parseInt(form.rating.value),
-            review_text: form.review_text.value,
-        }};
-        const res = await fetch('/api/reviews', {{
-            method: 'POST',
-            headers: {{'Content-Type': 'application/json'}},
-            body: JSON.stringify(body),
-        }});
-        if (res.ok) {{
-            alert('Thank you for your review!');
-            location.reload();
-        }}
-    }}
-    </script>
-    """
+            <div class="text-xl">🛒</div>
+        </nav>
 
+        <main class="max-w-7xl mx-auto px-12 py-16 grid grid-cols-1 md:grid-cols-2 gap-16">
+            <div class="bg-gray-100 rounded-2xl flex items-center justify-center p-12 min-h-[500px]">
+                <div class="text-center">
+                    <div class="text-8xl mb-4">🧴</div>
+                    <div class="text-gray-400 font-medium">30ml / 1.0 fl.oz</div>
+                </div>
+            </div>
+
+            <div class="py-4">
+                <div class="flex items-center gap-2 mb-4">
+                    <span class="text-yellow-400">★★★★★</span>
+                    <span class="text-sm text-gray-500 underline">4.8 (124 reviews)</span>
+                </div>
+                <h1 class="text-5xl font-bold mb-4 tracking-tight">Glow Serum 30ml</h1>
+                <p class="text-2xl font-light mb-8">£25.00</p>
+                <div class="prose text-gray-600 mb-12">
+                    A potent blend of Vitamin C and Hyaluronic acid designed to brighten and hydrate your skin instantly.
+                </div>
+                <button class="btn-buy hover:bg-gray-800 transition">Add to Bag</button>
+
+                <div id="review-extension" class="border-t mt-12 pt-12">
+                    <h3 class="text-xl font-bold mb-6">Customer Insights</h3>
+                    <div id="extension-content">
+                        <div class="animate-pulse bg-gray-100 h-24 rounded-lg"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <script>
+            async function loadExtension() {
+                const res = await fetch('/api/reviews/SKU-GD30');
+                const data = await res.json();
+                const container = document.getElementById('extension-content');
+                container.innerHTML = `
+                    <div class="bg-indigo-50 border border-indigo-100 p-6 rounded-xl mb-8">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-sm font-bold text-indigo-900 uppercase">AI Summary</span>
+                        </div>
+                        <p class="text-indigo-800 italic text-lg leading-relaxed">"${data.ai_summary}"</p>
+                    </div>
+                    <div class="space-y-6">
+                        ${data.reviews.slice(0, 2).map(r => `
+                            <div class="border-b pb-4">
+                                <div class="text-yellow-400 text-xs mb-1">${'★'.repeat(r.rating)}</div>
+                                <div class="font-bold text-sm uppercase">${r.customer_name}</div>
+                                <p class="text-gray-600 text-sm mt-1">${r.review_text}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+            loadExtension();
+        </script>
+    </body>
+    </html>
+    """
 
 @app.get("/")
 async def root():
     return {
         "service": "Team Beauty — Product Review App",
         "admin_panel": "/admin",
+        "storefront": "/storefront",
         "endpoints": {
             "POST /api/reviews": "Submit a review",
             "GET /api/reviews/{product_sku}": "Get reviews + AI summary",
-            "GET /storefront/reviews/{product_sku}": "Storefront widget",
         },
     }
